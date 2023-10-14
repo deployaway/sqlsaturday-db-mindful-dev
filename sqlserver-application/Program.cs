@@ -12,8 +12,8 @@ if (scenario.IsNullOrEmpty()) {
 }
 
 if (scenario?.ToLower() == "connection") {
-    /// 100 values insert
-    var stringList = Enumerable.Range(0, 1000).Select(n => "randomString-" + n.ToString()).ToList();
+    /// 500 values insert
+    var stringList = Enumerable.Range(0, 500).Select(n => "randomString-" + n.ToString()).ToList();
 
     var stopwatch = new Stopwatch();
     stopwatch.Start();
@@ -51,7 +51,7 @@ if (scenario?.ToLower() == "connection") {
 }
 
 if (scenario?.ToLower() == "parameterization") {
-    /// Invalid Example
+    /// Suboptimal practice
     var parameter_good = "test";
     var parameter_bad = "test'; INSERT INTO dbo.TestTable VALUES (100, 'got here'); SELECT 'boom";
 
@@ -66,7 +66,7 @@ if (scenario?.ToLower() == "parameterization") {
         bad_command.ExecuteNonQuery();
     }
 
-    /// Valid Example
+    /// Optimal practice
     var parameterized_query = "SELECT NumberColumn, StringColumn FROM dbo.TestTable WHERE StringColumn = @Parameter";
     var parameter_value = "test";
     using (SqlConnection connection = new SqlConnection(helpers.GetSqlConnectionString()))
@@ -75,6 +75,37 @@ if (scenario?.ToLower() == "parameterization") {
         using SqlCommand good_command = new SqlCommand(parameterized_query, connection);
         good_command.Parameters.Add(new SqlParameter("Parameter", parameter_value));
         good_command.ExecuteNonQuery();
+    }
+}
+
+if (scenario?.ToLower() == "transaction") {
+    /// 500 values insert
+    var stringList = Enumerable.Range(0, 10).Select(n => "randomString-" + n.ToString()).ToList();
+   
+    using (SqlConnection connection = new SqlConnection(helpers.GetSqlConnectionString()))
+    {
+        connection.Open();
+        foreach (String stringValue in stringList) {
+            var transaction = connection.BeginTransaction();
+            using SqlCommand insert_command = new SqlCommand("INSERT INTO dbo.TestTable VALUES (@NumParam, @StringParam)", connection);
+            insert_command.Parameters.Add(new SqlParameter("NumParam", 14));
+            insert_command.Parameters.Add(new SqlParameter("StringParam", stringValue));
+            insert_command.ExecuteNonQuery();
+            transaction.Commit();
+        }
+    }
+
+    using (SqlConnection connection = new SqlConnection(helpers.GetSqlConnectionString()))
+    {
+        connection.Open();
+        var transaction = connection.BeginTransaction();
+        foreach (String stringValue in stringList) {
+            using SqlCommand insert_command = new SqlCommand("INSERT INTO dbo.TestTable VALUES (@NumParam, @StringParam)", connection);
+            insert_command.Parameters.Add(new SqlParameter("NumParam", 14));
+            insert_command.Parameters.Add(new SqlParameter("StringParam", stringValue));
+            insert_command.ExecuteNonQuery();
+        }
+        transaction.Commit();
     }
 }
 
